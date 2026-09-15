@@ -3,10 +3,12 @@
 monitor_fun() {
     local I
     while true; do
-        if ! I="$(busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged)"; then
+        if ! I="$(busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged | grep -m1 -oE "ActiveProfile")"; then
             printf "Failed to start busctl listener.\n"; return 1
         fi
-        grep -q '"ActiveProfile"' <<<$I || continue
+        if [ "I" != "ActiveProfile" ]; then
+            continue
+        fi
         if ! STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
             printf "Failed to capture power profile state.\n"; return 1
         fi
@@ -28,7 +30,7 @@ apply_park_fun() {
             if ! printf 'member\n' > $PARK_DIR/cpuset.cpus.partition; then
                 return 1
             fi
-            printf "Applied performance CPU adjustment.\n"
+            printf "Applied the performance CPU adjustment.\n"
             ;;
         balanced)
             if ! printf '0,1,2,5,8,9,10,11\n' > $PARK_DIR/cpuset.cpus; then
@@ -40,7 +42,7 @@ apply_park_fun() {
             if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
                 return 1
             fi
-            printf "Applied balanced CPU adjustment.\n"
+            printf "Applied the balanced CPU adjustment.\n"
             ;;
         power-saver)
             if ! printf '0-13\n' > $PARK_DIR/cpuset.cpus; then
@@ -52,7 +54,7 @@ apply_park_fun() {
             if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
                 return 1
             fi
-            printf "Applied power saving CPU adjustment.\n"
+            printf "Applied the power saving CPU adjustment.\n"
             ;;
     esac
     return 0
@@ -71,7 +73,7 @@ if ! STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles 
 fi
 while true; do
     if ! apply_park_fun; then
-        exit 1
+        printf "Failed to adjust parked CPU cores.\n"; exit 1
     fi
     if ! monitor_fun; then
         exit 1
