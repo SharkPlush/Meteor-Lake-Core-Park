@@ -1,8 +1,8 @@
 #!/bin/bash
 
 monitor_fun() {
+    local I
     while true; do
-        local I
         if ! I="$(busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged)"; then
             printf "Failed to start busctl listener.\n"; return 1
         fi
@@ -60,12 +60,14 @@ apply_park_fun() {
 
 # ----- ENTRY POINT -----
 PARK_DIR="/sys/fs/cgroup/parked-cores"
-printf '+cpuset\n' > /sys/fs/cgroup/cgroup.subtree_control
-if ! STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
-    printf "Failed to capture power profile state when starting script.\n"; exit 1
+if ! printf '+cpuset\n' > /sys/fs/cgroup/cgroup.subtree_control; then
+    printf "Failed to add +cpuset to cgroup.subtree_control\n"; exit 1
 fi
 if ! mkdir -p "$PARK_DIR"; then
     printf "Failed to create $PARK_DIR\n"; exit 1
+fi
+if ! STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
+    printf "Failed to capture power profile state when starting script.\n"; exit 1
 fi
 while true; do
     if ! apply_park_fun; then
