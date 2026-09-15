@@ -19,13 +19,13 @@ apply_park_fun() {
     printf "Readjusting parked CPU cores.\n"
     case $STATE in
         performance)
-            if ! printf 'member\n' > $PARK_DIR/cpuset.cpus.partition; then
-                return 1
-            fi
             if ! printf '0-17\n' > $PARK_DIR/cpuset.cpus; then
                 return 1
             fi
             if ! printf '0-17\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                return 1
+            fi
+            if ! printf 'member\n' > $PARK_DIR/cpuset.cpus.partition; then
                 return 1
             fi
             printf "Applied performance CPU adjustment.\n"
@@ -75,3 +75,6 @@ while true; do
         exit 1
     fi
 done
+
+
+# Add random core picking for even wear
