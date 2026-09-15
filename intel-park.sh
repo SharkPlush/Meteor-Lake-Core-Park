@@ -6,7 +6,7 @@ monitor_fun() {
         if ! I="$(busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged | grep -m1 -oE "ActiveProfile")"; then
             printf "Failed to start busctl listener.\n"; return 1
         fi
-        if [ "I" != "ActiveProfile" ]; then
+        if [ "$I" != "ActiveProfile" ]; then
             continue
         fi
         if ! STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
@@ -80,5 +80,5 @@ while true; do
     fi
 done
 
-
-# Add random core picking for even wear
+# Add random-ish core picking for even wear
+# Find what type of cores and how many we have dynamically and scale for that
