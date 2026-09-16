@@ -22,8 +22,8 @@ apply_park_fun() {
     printf "Readjusting parked CPU cores.\n"
     case $POWER_STATE in
         balanced)
-            case $POWER-SAVER-ROTATE in
-                1)
+            case $BALANCED_ROTATE in
+                0)
                     if ! printf '0,1,2,5,8,9,10,11\n' > $PARK_DIR/cpuset.cpus; then
                         return 1
                     fi
@@ -33,9 +33,10 @@ apply_park_fun() {
                     if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
                         return 1
                     fi
-                    $POWER-SAVER-ROTATE="2"
+                    printf "Balanced rotation 1\n"
+                    BALANCED_ROTATE="1"
                     ;;
-                2)
+                1)
                     if ! printf '3,4,6,7,12,13,14,15\n' > $PARK_DIR/cpuset.cpus; then
                         return 1
                     fi
@@ -45,20 +46,67 @@ apply_park_fun() {
                     if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
                         return 1
                     fi
-                    $POWER-SAVER-ROTATE="1"
+                    printf "Balanced rotation 2\n"
+                    BALANCED_ROTATE="0"
                     ;;
+            esac
             printf "Applied the balanced CPU adjustment.\n"
             ;;
         power-saver)
-            if ! printf '0-15\n' > $PARK_DIR/cpuset.cpus; then
-                return 1
-            fi
-            if ! printf '0-15\n' > $PARK_DIR/cpuset.cpus.exclusive; then
-                return 1
-            fi
-            if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
-                return 1
-            fi
+            case $POWER_SAVER_ROTATE in
+                0)
+                    if ! printf '8,9,16,17\n' > $PARK_DIR/cpuset.cpus; then
+                        return 1
+                    fi
+                    if ! printf '8,9,16,17\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                        return 1
+                    fi
+                    if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
+                        return 1
+                    fi
+                    printf "Power-saver rotation 1\n"
+                    POWER_SAVER_ROTATE="1"
+                    ;;
+                1)
+                    if ! printf '10,11,16,17\n' > $PARK_DIR/cpuset.cpus; then
+                        return 1
+                    fi
+                    if ! printf '10,11,16,17\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                        return 1
+                    fi
+                    if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
+                        return 1
+                    fi
+                    printf "Power-saver rotation 2\n"
+                    POWER_SAVER_ROTATE="2"
+                    ;;
+                2)
+                    if ! printf '12,13,16,17\n' > $PARK_DIR/cpuset.cpus; then
+                        return 1
+                    fi
+                    if ! printf '12,13,16,17\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                        return 1
+                    fi
+                    if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
+                        return 1
+                    fi
+                    printf "Power-saver rotation 3\n"
+                    POWER_SAVER_ROTATE="3"
+                    ;;
+                3)
+                    if ! printf '14,15,16,17\n' > $PARK_DIR/cpuset.cpus; then
+                        return 1
+                    fi
+                    if ! printf '14,15,16,17\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                        return 1
+                    fi
+                    if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
+                        return 1
+                    fi
+                    printf "Power-saver rotation 4\n"
+                    POWER_SAVER_ROTATE="0"
+                    ;;
+            esac
             printf "Applied the power saving CPU adjustment.\n"
             ;;
         *)
@@ -78,8 +126,8 @@ apply_park_fun() {
 }
 
 # ----- ENTRY POINT -----
-POWER-SAVER-ROTATE=""
-BALANCED-ROTATE=""
+POWER_SAVER_ROTATE=$(( RANDOM % 2 ))
+BALANCED_ROTATE=$(( RANDOM % 4 ))
 PARK_DIR="/sys/fs/cgroup/parked-cores"
 if ! printf '+cpuset\n' > /sys/fs/cgroup/cgroup.subtree_control; then
     printf "Failed to add +cpuset to cgroup.subtree_control\n"; exit 1
