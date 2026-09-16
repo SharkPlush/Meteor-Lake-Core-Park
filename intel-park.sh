@@ -40,7 +40,7 @@ apply_park_fun() {
                     if ! printf '3,4,6,7,12,13,14,15\n' > $PARK_DIR/cpuset.cpus; then
                         return 1
                     fi
-                    if ! printf '3,4,6,7,12,13,14,11\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                    if ! printf '3,4,6,7,12,13,14,15\n' > $PARK_DIR/cpuset.cpus.exclusive; then
                         return 1
                     fi
                     if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
@@ -126,8 +126,8 @@ apply_park_fun() {
 }
 
 # ----- ENTRY POINT -----
-POWER_SAVER_ROTATE=$(( RANDOM % 2 ))
-BALANCED_ROTATE=$(( RANDOM % 4 ))
+POWER_SAVER_ROTATE=$(( RANDOM % 4 ))
+BALANCED_ROTATE=$(( RANDOM % 2 ))
 PARK_DIR="/sys/fs/cgroup/parked-cores"
 if ! printf '+cpuset\n' > /sys/fs/cgroup/cgroup.subtree_control; then
     printf "Failed to add +cpuset to cgroup.subtree_control\n"; exit 1
