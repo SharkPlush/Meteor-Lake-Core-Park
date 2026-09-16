@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 monitor_fun() {
     local I
@@ -9,7 +10,7 @@ monitor_fun() {
         if [ "$I" != "ActiveProfile" ]; then
             continue
         fi
-        if ! STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
+        if ! POWER_STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
             printf "Failed to capture power profile state.\n"; return 1
         fi
         break
@@ -19,8 +20,48 @@ monitor_fun() {
 
 apply_park_fun() {
     printf "Readjusting parked CPU cores.\n"
-    case $STATE in
-        performance)
+    case $POWER_STATE in
+        balanced)
+            case $POWER-SAVER-ROTATE in
+                1)
+                    if ! printf '0,1,2,5,8,9,10,11\n' > $PARK_DIR/cpuset.cpus; then
+                        return 1
+                    fi
+                    if ! printf '0,1,2,5,8,9,10,11\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                        return 1
+                    fi
+                    if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
+                        return 1
+                    fi
+                    $POWER-SAVER-ROTATE="2"
+                    ;;
+                2)
+                    if ! printf '3,4,6,7,12,13,14,15\n' > $PARK_DIR/cpuset.cpus; then
+                        return 1
+                    fi
+                    if ! printf '3,4,6,7,12,13,14,11\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                        return 1
+                    fi
+                    if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
+                        return 1
+                    fi
+                    $POWER-SAVER-ROTATE="1"
+                    ;;
+            printf "Applied the balanced CPU adjustment.\n"
+            ;;
+        power-saver)
+            if ! printf '0-15\n' > $PARK_DIR/cpuset.cpus; then
+                return 1
+            fi
+            if ! printf '0-15\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                return 1
+            fi
+            if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
+                return 1
+            fi
+            printf "Applied the power saving CPU adjustment.\n"
+            ;;
+        *)
             if ! printf '0-17\n' > $PARK_DIR/cpuset.cpus; then
                 return 1
             fi
@@ -32,35 +73,13 @@ apply_park_fun() {
             fi
             printf "Applied the performance CPU adjustment.\n"
             ;;
-        balanced)
-            if ! printf '0,1,2,5,8,9,10,11\n' > $PARK_DIR/cpuset.cpus; then
-                return 1
-            fi
-            if ! printf '0,1,2,5,8,9,10,11\n' > $PARK_DIR/cpuset.cpus.exclusive; then
-                return 1
-            fi
-            if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
-                return 1
-            fi
-            printf "Applied the balanced CPU adjustment.\n"
-            ;;
-        power-saver)
-            if ! printf '0-13\n' > $PARK_DIR/cpuset.cpus; then
-                return 1
-            fi
-            if ! printf '0-13\n' > $PARK_DIR/cpuset.cpus.exclusive; then
-                return 1
-            fi
-            if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
-                return 1
-            fi
-            printf "Applied the power saving CPU adjustment.\n"
-            ;;
     esac
     return 0
 }
 
 # ----- ENTRY POINT -----
+POWER-SAVER-ROTATE=""
+BALANCED-ROTATE=""
 PARK_DIR="/sys/fs/cgroup/parked-cores"
 if ! printf '+cpuset\n' > /sys/fs/cgroup/cgroup.subtree_control; then
     printf "Failed to add +cpuset to cgroup.subtree_control\n"; exit 1
@@ -68,7 +87,7 @@ fi
 if ! mkdir -p "$PARK_DIR"; then
     printf "Failed to create $PARK_DIR\n"; exit 1
 fi
-if ! STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
+if ! POWER_STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
     printf "Failed to capture power profile state when starting script.\n"; exit 1
 fi
 while true; do
@@ -79,6 +98,3 @@ while true; do
         exit 1
     fi
 done
-
-# Add random-ish core picking for even wear
-# Find what type of cores and how many we have dynamically and scale for that
