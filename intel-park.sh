@@ -142,28 +142,25 @@ apply_park_fun() {
 
 # ----- ENTRY POINT -----
 POWER_MODE=""
+BALANCED_ROTATE=$(( RANDOM % 2 ))
+POWER_SAVER_ROTATE=$(( RANDOM % 4 ))
 PARK_DIR="/sys/fs/cgroup/parked-cores"
 if ! printf '+cpuset\n' > /sys/fs/cgroup/cgroup.subtree_control; then
-    printf "Failed to add +cpuset to cgroup.subtree_control\n"; exit 1
+    printf "Failed to add +cpuset to cgroup.subtree_control\n"
+    exit 1
 fi
 if ! mkdir -p "$PARK_DIR"; then
-    printf "Failed to create $PARK_DIR\n"; exit 1
+    printf "Failed to create $PARK_DIR\n"
+    exit 1
 fi
 if ! POWER_STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
-    printf "Failed to capture power profile state when starting script.\n"; exit 1
-else
-    case $POWER_STATE in
-        balanced)
-            BALANCED_ROTATE=$(( RANDOM % 2 ))
-            ;;
-        power-saver)
-            POWER_SAVER_ROTATE=$(( RANDOM % 4 ))
-            ;;
-    esac
+    printf "Failed to capture power profile state when starting script.\n"
+    exit 1
 fi
 while true; do
     if ! apply_park_fun; then
-        printf "Failed to adjust parked CPU cores.\n"; exit 1
+        printf "Failed to adjust parked CPU cores.\n"
+        exit 1
     fi
     if ! monitor_fun; then
         exit 1
