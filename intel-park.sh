@@ -23,21 +23,11 @@ monitor_fun() {
             printf "Failed to start busctl listener.\n"
             return 1
         fi
-        PROFILE="$(grep "ActiveProfile" <<<$I)" || continue
+        grep -q "ActiveProfile" <<<$I || continue
         if ! POWER_STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
-            printf "Failed to capture power profile state.\n"; return 1
+            printf "Failed to capture power profile state.\n"
+            return 1
         fi
-        case $PROFILE in
-            power-saver)
-                printf "Applying the power-saver CPU adjustment.\n"
-                ;;
-            balanced)
-                printf "Applying the balanced CPU adjustment.\n"
-                ;;
-            *)
-                printf "Applying the performance CPU adjustment.\n"
-                ;;
-        esac
         break
     done
     return 0
