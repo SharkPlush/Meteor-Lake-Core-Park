@@ -2,17 +2,42 @@
 set -euo pipefail
 
 monitor_fun() {
-    local I
+    local I REMAIN E_CODE=0 PROFILE
     while true; do
-        if ! I="$(busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged | grep -m1 -oE "ActiveProfile")"; then
-            printf "Failed to start busctl listener.\n"; return 1
+        case $POWER_MODE in
+            1)
+                REMAIN="$(( ROTATION_TIMER - SECONDS ))"
+                if [ "$REMAIN" -le 0 ]; then
+                    return 0
+                fi
+                I="$(timeout $REMAIN busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged)" || E_CODE=$?
+                ;;
+            *)
+                I="$(busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged)" || E_CODE=$?
+                ;;
+        esac
+        if [ "$E_CODE" = "124" ]; then
+            return 0
         fi
-        if [ "$I" != "ActiveProfile" ]; then
-            continue
+        if [ "$E_CODE" -ne "0" ]; then
+            printf "Failed to start busctl listener.\n"
+            return 1
         fi
+        PROFILE="$(grep "ActiveProfile" <<<$I)" || continue
         if ! POWER_STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
             printf "Failed to capture power profile state.\n"; return 1
         fi
+        case $PROFILE in
+            power-saver)
+                printf "Applying the power-saver CPU adjustment.\n"
+                ;;
+            balanced)
+                printf "Applying the balanced CPU adjustment.\n"
+                ;;
+            *)
+                printf "Applying the performance CPU adjustment.\n"
+                ;;
+        esac
         break
     done
     return 0
@@ -50,7 +75,7 @@ apply_park_fun() {
                     BALANCED_ROTATE="0"
                     ;;
             esac
-            printf "Applied the balanced CPU adjustment.\n"
+            POWER_MODE="1"; ROTATION_TIMER=$(( SECONDS + 1800 ))
             ;;
         power-saver)
             case $POWER_SAVER_ROTATE in
@@ -107,7 +132,7 @@ apply_park_fun() {
                     POWER_SAVER_ROTATE="0"
                     ;;
             esac
-            printf "Applied the power saving CPU adjustment.\n"
+            POWER_MODE="1"; ROTATION_TIMER=$(( SECONDS + 1800 ))
             ;;
         *)
             if ! printf '0-17\n' > $PARK_DIR/cpuset.cpus; then
@@ -119,15 +144,14 @@ apply_park_fun() {
             if ! printf 'member\n' > $PARK_DIR/cpuset.cpus.partition; then
                 return 1
             fi
-            printf "Applied the performance CPU adjustment.\n"
+            POWER_MODE="0"
             ;;
     esac
     return 0
 }
 
 # ----- ENTRY POINT -----
-POWER_SAVER_ROTATE=$(( RANDOM % 4 ))
-BALANCED_ROTATE=$(( RANDOM % 2 ))
+POWER_MODE=""
 PARK_DIR="/sys/fs/cgroup/parked-cores"
 if ! printf '+cpuset\n' > /sys/fs/cgroup/cgroup.subtree_control; then
     printf "Failed to add +cpuset to cgroup.subtree_control\n"; exit 1
@@ -137,6 +161,15 @@ if ! mkdir -p "$PARK_DIR"; then
 fi
 if ! POWER_STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
     printf "Failed to capture power profile state when starting script.\n"; exit 1
+else
+    case $POWER_STATE in
+        balanced)
+            BALANCED_ROTATE=$(( RANDOM % 2 ))
+            ;;
+        power-saver)
+            POWER_SAVER_ROTATE=$(( RANDOM % 4 ))
+            ;;
+    esac
 fi
 while true; do
     if ! apply_park_fun; then
