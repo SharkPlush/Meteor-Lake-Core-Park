@@ -70,10 +70,10 @@ apply_park_fun() {
         power-saver)
             case $POWER_SAVER_ROTATE in
                 0)
-                    if ! printf '8,9,16,17\n' > $PARK_DIR/cpuset.cpus; then
+                    if ! printf '0-7,10,11,12,13,14,15\n' > $PARK_DIR/cpuset.cpus; then
                         return 1
                     fi
-                    if ! printf '8,9,16,17\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                    if ! printf '0-7,10,11,12,13,14,15\n' > $PARK_DIR/cpuset.cpus.exclusive; then
                         return 1
                     fi
                     if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
@@ -83,10 +83,10 @@ apply_park_fun() {
                     POWER_SAVER_ROTATE="1"
                     ;;
                 1)
-                    if ! printf '10,11,16,17\n' > $PARK_DIR/cpuset.cpus; then
+                    if ! printf '0-7,8,9,12,13,14,15\n' > $PARK_DIR/cpuset.cpus; then
                         return 1
                     fi
-                    if ! printf '10,11,16,17\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                    if ! printf '0-7,8,9,12,13,14,15\n' > $PARK_DIR/cpuset.cpus.exclusive; then
                         return 1
                     fi
                     if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
@@ -96,10 +96,10 @@ apply_park_fun() {
                     POWER_SAVER_ROTATE="2"
                     ;;
                 2)
-                    if ! printf '12,13,16,17\n' > $PARK_DIR/cpuset.cpus; then
+                    if ! printf '0-7,8,9,10,11,14,15\n' > $PARK_DIR/cpuset.cpus; then
                         return 1
                     fi
-                    if ! printf '12,13,16,17\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                    if ! printf '0-7,8,9,10,11,14,15\n' > $PARK_DIR/cpuset.cpus.exclusive; then
                         return 1
                     fi
                     if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
@@ -109,10 +109,10 @@ apply_park_fun() {
                     POWER_SAVER_ROTATE="3"
                     ;;
                 3)
-                    if ! printf '14,15,16,17\n' > $PARK_DIR/cpuset.cpus; then
+                    if ! printf '0-7,8,9,10,11,12,13\n' > $PARK_DIR/cpuset.cpus; then
                         return 1
                     fi
-                    if ! printf '14,15,16,17\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+                    if ! printf '0-7,8,9,10,11,12,13\n' > $PARK_DIR/cpuset.cpus.exclusive; then
                         return 1
                     fi
                     if ! printf 'isolated\n' > $PARK_DIR/cpuset.cpus.partition; then
