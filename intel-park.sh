@@ -2,7 +2,7 @@
 set -euo pipefail
 
 monitor_fun() {
-    local I REMAIN E_CODE=0 PROFILE
+    local I REMAIN E_CODE=0
     while true; do
         case $POWER_MODE in
             1)
@@ -10,7 +10,7 @@ monitor_fun() {
                 if [ "$REMAIN" -le 0 ]; then
                     return 0
                 fi
-                I="$(timeout $REMAIN busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged)" || E_CODE=$?
+                I="$(timeout "$REMAIN" busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged)" || E_CODE=$?
                 ;;
             *)
                 I="$(busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged)" || E_CODE=$?
@@ -23,7 +23,7 @@ monitor_fun() {
             printf "Failed to start busctl listener.\n"
             return 1
         fi
-        grep -q "ActiveProfile" <<<$I || continue
+        grep -q "ActiveProfile" <<<"$I" || continue
         if ! POWER_STATE="$(busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile | grep -m1 -oE "power-saver|balanced|performance")"; then
             printf "Failed to capture power profile state.\n"
             return 1
