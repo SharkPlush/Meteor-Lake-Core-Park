@@ -1,16 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
+cleanup_fun() {
+    if ! printf '0-17\n' > $PARK_DIR/cpuset.cpus; then
+        printf "Failed to put cores into cpuset.cpu during cleanup.\n"
+    fi
+    if ! printf '0-17\n' > $PARK_DIR/cpuset.cpus.exclusive; then
+        printf "Failed to put cores into cpuset.exclusive during cleanup.\n"
+    fi
+    if ! printf 'member\n' > $PARK_DIR/cpuset.cpus.partition; then
+        printf "Failed to put cores into member state during cleanup.\n"
+    fi
+}
+
 monitor_fun() {
     local I REMAIN E_CODE=0
     while true; do
         case $POWER_MODE in
             1)
-                REMAIN="$(( ROTATION_TIMER - SECONDS ))"
-                if [ "$REMAIN" -le 0 ]; then
-                    return 0
-                fi
-                I="$(timeout "$REMAIN" busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged)" || E_CODE=$?
+                I="$(timeout 1800 busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged)" || E_CODE=$?
                 ;;
             *)
                 I="$(busctl --system wait org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.DBus.Properties PropertiesChanged)" || E_CODE=$?
@@ -65,7 +73,7 @@ apply_park_fun() {
                     BALANCED_ROTATE="0"
                     ;;
             esac
-            POWER_MODE="1"; ROTATION_TIMER=$(( SECONDS + 1800 ))
+            POWER_MODE="1"
             ;;
         power-saver)
             case $POWER_SAVER_ROTATE in
@@ -122,7 +130,7 @@ apply_park_fun() {
                     POWER_SAVER_ROTATE="0"
                     ;;
             esac
-            POWER_MODE="1"; ROTATION_TIMER=$(( SECONDS + 1800 ))
+            POWER_MODE="1"
             ;;
         *)
             if ! printf '0-17\n' > $PARK_DIR/cpuset.cpus; then
@@ -141,6 +149,7 @@ apply_park_fun() {
 }
 
 # ----- ENTRY POINT -----
+trap 'cleanup_fun'; EXIT
 POWER_MODE=""
 BALANCED_ROTATE=$(( RANDOM % 2 ))
 POWER_SAVER_ROTATE=$(( RANDOM % 4 ))
