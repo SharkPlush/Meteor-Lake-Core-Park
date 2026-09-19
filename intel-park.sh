@@ -12,27 +12,44 @@
 set -euo pipefail
 
 apply_park_fun() {
-    if [ "$POWER_STATE" = "power-saver" ]; then
-        if ! printf '%s' "$P_CORES" > /sys/fs/cgroup/parked-cores/cpuset.cpus; then
-            return 1
-        fi
-        if ! printf '%s' "$P_CORES" > /sys/fs/cgroup/parked-cores/cpuset.cpus.exclusive; then
-            return 1
-        fi
-        if ! printf 'isolated' > /sys/fs/cgroup/parked-cores/cpuset.cpus.partition; then
-            return 1
-        fi
-    else
-        if ! printf 'member' > /sys/fs/cgroup/parked-cores/cpuset.cpus.partition; then
-            return 1
-        fi
-        if ! printf '%s' "$A_CORES" > /sys/fs/cgroup/parked-cores/cpuset.cpus; then
-            return 1
-        fi
-        if ! printf '%s' "$A_CORES" > /sys/fs/cgroup/parked-cores/cpuset.cpus.exclusive; then
-            return 1
-        fi
-    fi
+    case $POWER_STATE in
+        power-saver)
+            if ! printf '%s' "$P_CORES" > /sys/fs/cgroup/parked-cores/cpuset.cpus; then
+                return 1
+            fi
+            if ! printf '%s' "$P_CORES" > /sys/fs/cgroup/parked-cores/cpuset.cpus.exclusive; then
+                return 1
+            fi
+            if ! printf 'isolated' > /sys/fs/cgroup/parked-cores/cpuset.cpus.partition; then
+                return 1
+            fi
+            ;;
+        *)
+            # If BALANCED_P_CORES is 0 then P cores will not be used in balanced mode ->
+            # If it is 1 then P cores will be used in balanced mode.
+            if [ "$POWER_STATE" = "balanced" ] && [ "$BALANCED_P_CORES" = "0" ]; then
+                if ! printf '%s' "$P_CORES" > /sys/fs/cgroup/parked-cores/cpuset.cpus; then
+                    return 1
+                fi
+                if ! printf '%s' "$P_CORES" > /sys/fs/cgroup/parked-cores/cpuset.cpus.exclusive; then
+                    return 1
+                fi
+                if ! printf 'isolated' > /sys/fs/cgroup/parked-cores/cpuset.cpus.partition; then
+                    return 1
+                fi
+            else
+                if ! printf 'member' > /sys/fs/cgroup/parked-cores/cpuset.cpus.partition; then
+                    return 1
+                fi
+                if ! printf '%s' "$A_CORES" > /sys/fs/cgroup/parked-cores/cpuset.cpus; then
+                    return 1
+                fi
+                if ! printf '%s' "$A_CORES" > /sys/fs/cgroup/parked-cores/cpuset.cpus.exclusive; then
+                    return 1
+                fi
+            fi
+            ;;
+    esac
     return 0
 }
 
@@ -41,6 +58,7 @@ touch "/tmp/intel-park.lock"
 
 # Check for supported CPU
 CPU_GEN="$(awk '/^model\t/{print $3;exit}' /proc/cpuinfo)"
+readonly CPU_GEN
 case $CPU_GEN in
     151|154|183|186|191|170|172)
         printf 'Supported CPU found.\n'
@@ -52,10 +70,25 @@ case $CPU_GEN in
         ;;
 esac
 
+# Variable for controlling if the balanced power profile should have P cores utilized.
+: "${BALANCED_P_CORES:=0}"
+readonly BALANCED_P_CORES
+case $BALANCED_P_CORES in
+    0|1)
+        ;;
+    *)
+        printf 'The BALANCED_P_CORES variable can only be 0 or 1.\n'
+        rm "/tmp/intel-park.lock"
+        exit 2
+        ;;
+esac
+
 # We don't ever park E and LPE cores so we don't need to find them individually.
 # Parking E cores causes power inefficency and parking LPE cores is just not a good idea.
 P_CORES="$(< /sys/devices/cpu_core/cpus)"
+readonly P_CORES
 A_CORES="$(< /sys/devices/system/cpu/present)"
+readonly A_CORES
 
 BUSCTL_OUT=""
 POWER_STATE=""
